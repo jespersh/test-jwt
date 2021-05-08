@@ -21,8 +21,11 @@ namespace testJwtApi1
 {
     public class Startup
     {
+        private readonly IExtraTokensValidator _extraTokensValidator;
+
         public Startup(IConfiguration configuration)
         {
+            _extraTokensValidator = new ExtraTokensValidator();
             Configuration = configuration;
         }
 
@@ -47,8 +50,11 @@ namespace testJwtApi1
                         IssuerSigningKey = new SymmetricSecurityKey(key),
                         ValidateIssuer = false,
                         ValidateAudience = false,
+                        ValidateActor = true,
                         //SignatureValidator = TheSignatureValidator
                     };
+                    o.SecurityTokenValidators.Clear();
+                    o.SecurityTokenValidators.Add(_extraTokensValidator);
                 });
             services.AddControllers();
             services.AddSwaggerGen(c =>
@@ -57,6 +63,7 @@ namespace testJwtApi1
             });
             services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
             services.AddScoped<IUserService, UserService>();
+            services.AddSingleton<IExtraTokensValidator>(_extraTokensValidator);
         }
 
         /*private SecurityToken TheSignatureValidator(string token, TokenValidationParameters validationParameters)

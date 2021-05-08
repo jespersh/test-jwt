@@ -26,10 +26,12 @@ namespace testJwtApi1.Services
         };
 
         private readonly AppSettings _appSettings;
+        private readonly IExtraTokensValidator _extraTokensValidator;
 
-        public UserService(IOptions<AppSettings> appSettings)
+        public UserService(IOptions<AppSettings> appSettings, IExtraTokensValidator extraTokensValidator)
         {
             _appSettings = appSettings.Value;
+            _extraTokensValidator = extraTokensValidator;
         }
 
         public AuthenticateResponse Authenticate(AuthenticateRequest model)
@@ -55,20 +57,23 @@ namespace testJwtApi1.Services
         private string generateJwtToken(User user)
         {
             // generate token that is valid for 7 days
-            var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[]
                 {
                     new Claim(ClaimTypes.Name, user.Id.ToString()),
-                    new Claim(ClaimTypes.Role, "customrole"),
+                    new Claim(ClaimTypes.Role, "adserverservice"),
                 }),
                 Expires = DateTime.UtcNow.AddDays(7),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
+            var token = _extraTokensValidator.CreateToken(tokenDescriptor);
+            if (token is JwtSecurityToken jwtSecurityToken)
+            {
+                _extraTokensValidator.SaveToken(jwtSecurityToken.RawData, jwtSecurityToken.ValidTo);
+            }
+            return _extraTokensValidator.WriteToken(token);
         }
     }
 }
